@@ -1,0 +1,77 @@
+# Template for creating new experiments
+# Copy this file and fill in your experiment-specific parameters
+# All other parameters will use defaults from default_config.yaml
+
+# ============================================================================
+# Required: Experiment identification
+# ============================================================================
+training_config:
+    run_name: "my_experiment_name"  # CHANGE THIS: Unique name for your experiment
+
+# ============================================================================
+# Required: Dataset configuration
+# ============================================================================
+data:
+    dataset_path: "your/dataset/path"  # CHANGE THIS: HuggingFace dataset or local path
+    
+    # For unconditional generation (default):
+    condition: False
+    # text_field: "text"  # Field containing text (default is "text")
+    
+    # For conditional generation, uncomment and set:
+    # condition: True
+    # prompt_field: "instruction"   # Field containing prompts
+    # response_field: "output"      # Field containing responses
+
+# ============================================================================
+# Optional: Override default parameters if needed
+# ============================================================================
+
+# Inference configuration (for running inference later)
+# Optional: checkpoint path is auto-detected from logs/{run_name}/ if not specified
+# inference:
+#     checkpoint: "./logs/my_experiment_name/ckpt.pt"  # Explicit path (optional)
+
+# Uncomment and modify below if you want to override defaults:
+
+# # Model architecture (default: 12-layer, 768-dim)
+# model:
+#     n_layer: 24      # Larger model
+#     n_head: 16
+#     n_embd: 1024
+
+# # Training configuration
+# training_config:
+#     num_tokens_to_train: 2.0   # Train longer
+#     batch_size: 256            # Larger batch
+#     device_batch_size: 8       # Per-device batch
+#     val_loss_every: 500        # More frequent validation
+#     save_every: 500            # More frequent saves
+
+# # Optimizer configuration
+# optimizer:
+#     warmup_iters: 500          # Warmup steps
+#     warmdown_iters: 2000       # Cooldown steps
+#     weight_decay: 0.01         # Add regularization
+
+# # Flow Matching configuration
+# fm:
+#     type: "DFM"  # Try different FM algorithm
+# 
+# fm_config:
+#     max_t: 1.0   # Different max time
+#     mode0: "mask"  # DFM-specific parameter
+
+# # Data configuration
+# data:
+#     sequence_length: 1024      # Longer sequences
+#     tokenizer_name: "gpt2"     # Different tokenizer
+
+# ============================================================================
+# Usage:
+# ============================================================================
+# 1. Copy this file: cp configs/template_experiment.yaml configs/my_experiment.yaml
+# 2. Edit the file and set run_name, dataset_path, and any overrides
+# 3. Run training: python train_fm.py configs/my_experiment.yaml
+# 4. Run inference: python inference_fm.py configs/my_experiment.yaml
+# ============================================================================

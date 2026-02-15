@@ -1,0 +1,26 @@
+# Requirements for the new dataset system
+# Install with: pip install -r requirements_dataset.txt
+
+# HuggingFace ecosystem
+datasets>=2.14.0
+transformers>=4.30.0
+accelerate>=0.20.0
+huggingface-hub>=0.16.0
+
+# Core dependencies (if not already installed)
+torch>=2.0.0
+numpy>=1.24.0
+tqdm>=4.65.0
+
+# Configuration
+omegaconf>=2.3.0
+
+# Optimizer - Install from GitHub
+git+https://github.com/KellerJordan/Muon.git
+
+# Logging
+tensorboard>=2.11.0
+
+# Development tools (optional)
+ipython>=8.0.0
+jupyter>=1.0.0

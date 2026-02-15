@@ -1,0 +1,58 @@
+# Default configuration for KL-Flow
+# These parameters are typically not changed between experiments
+# Experiment-specific configs will override these defaults
+
+# Model architecture defaults
+model:
+    type: "FlowMatchingTransformer"  # Default model type
+    vocab_size: 50304  # GPT-2 vocab extended to nearest multiple of 128
+    n_layer: 12        # Number of transformer layers
+    n_head: 12         # Number of attention heads
+    n_embd: 768        # Embedding dimension
+    dropout: 0.1       # Dropout rate
+    max_seq_len: 2048  # Maximum sequence length
+    time_embed_dim: 256  # Time embedding dimension for flow matching
+
+# Flow Matching defaults
+fm:
+    type: "Logit"  # Default FM type: Logit, LogitEntropy, LogitUpdated, GPT, OneShot, LogitMask, DFM, Sphere, Dirichlet
+
+fm_config:
+    N: 1024      # Number of discretization steps
+    beta: 0.01   # Beta parameter for flow matching
+    max_t: 0.3   # Maximum time for flow matching
+    t_split: 0.28  # Time split for mixed inference
+
+# Optimizer defaults
+optimizer:
+    muon_learning_rate: 0.002     # Learning rate for 2D weight matrices (Muon optimizer)
+    embed_learning_rate: 0.00036  # Learning rate for embeddings and biases (Adam optimizer)
+    weight_decay: 0.0             # Weight decay (L2 regularization)
+    warmup_iters: 0               # Linear warmup steps
+    warmdown_iters: 1000          # Linear warmdown steps
+
+# Training defaults
+training_config:
+    batch_size: 128          # Global batch size (across all GPUs)
+    device_batch_size: 16    # Batch size per device
+    val_loss_every: 1000     # Validation frequency (steps)
+    save_every: 1000         # Checkpoint save frequency (steps)
+    num_tokens_to_train: 1.0  # Billions of tokens to train on
+    pretrain: null           # Path to pretrained checkpoint (optional)
+    checkpoint: null         # Path to resume from checkpoint (optional)
+
+# Data defaults
+data:
+    tokenizer_name: "gpt2"      # Default tokenizer (HuggingFace model name)
+    sequence_length: 512        # Maximum sequence length for training
+    text_field: "text"          # Default field name for text in dataset
+    condition: False            # Unconditional by default
+    prompt_field: null          # Field for prompts (conditional training)
+    response_field: null        # Field for responses (conditional training)
+
+# Inference defaults
+inference:
+    B_data: 4        # Batch size for data loading during inference
+    B_sub_data: 1    # Number of samples to generate per input
+    N_samples: 1000  # Total number of samples to generate
+    checkpoint: null  # Path to checkpoint for inference (optional - auto-detects from logs/{run_name}/ if not specified)

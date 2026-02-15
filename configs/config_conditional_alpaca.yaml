@@ -1,0 +1,24 @@
+# Experiment configuration for Alpaca conditional generation
+# This config is merged with default_config.yaml
+# Only specify parameters that differ from defaults
+
+# Experiment name
+training_config:
+    run_name: "alpaca_conditional_fm"
+    val_loss_every: 500
+    save_every: 500
+
+# Dataset configuration (Conditional Training)
+data:
+    dataset_path: "tatsu-lab/alpaca"
+    condition: True
+    prompt_field: "instruction"  # Field containing the prompt/instruction
+    response_field: "output"      # Field containing the response/answer
+
+# Optimizer configuration (different from default)
+optimizer:
+    warmup_iters: 500
+    warmdown_iters: 1000
+    weight_decay: 0.01
+
+# Checkpoint will be auto-detected from logs/alpaca_conditional_fm/

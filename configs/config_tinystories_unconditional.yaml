@@ -1,0 +1,14 @@
+# Experiment configuration for TinyStories unconditional generation
+# This config is merged with default_config.yaml
+# Only specify parameters that differ from defaults
+
+# Experiment name
+training_config:
+    run_name: "tiny_stories_fm"
+
+# Dataset configuration
+data:
+    dataset_path: "roneneldan/TinyStories"
+    condition: False
+
+# Checkpoint will be auto-detected from logs/tiny_stories_fm/
