@@ -16,6 +16,43 @@ from datasets import load_dataset, DatasetDict
 from omegaconf import OmegaConf
 
 
+# -----------------------------------------------------------------------------
+# Config Loading and Merging
+# -----------------------------------------------------------------------------
+
+def load_config(experiment_config_path: str) -> OmegaConf:
+    """
+    Load and merge default config with experiment config.
+    
+    Args:
+        experiment_config_path: Path to experiment-specific config file
+    
+    Returns:
+        Merged configuration
+    """
+    # Get the directory containing this script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    default_config_path = os.path.join(script_dir, "configs", "default_config.yaml")
+    
+    # Load default config
+    if os.path.exists(default_config_path):
+        default_config = OmegaConf.load(default_config_path)
+        print(f"Loaded default config from: {default_config_path}")
+    else:
+        print(f"Warning: Default config not found at {default_config_path}")
+        default_config = OmegaConf.create()
+    
+    # Load experiment config
+    experiment_config = OmegaConf.load(experiment_config_path)
+    print(f"Loaded experiment config from: {experiment_config_path}")
+    
+    # Merge configs (experiment config overrides defaults)
+    config = OmegaConf.merge(default_config, experiment_config)
+    print("Merged default and experiment configs")
+    
+    return config
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Download dataset specified in config file")
     
@@ -48,9 +85,8 @@ def download_dataset(config_path: str, output_dir: str = None, skip_if_exists: b
         output_dir: Optional output directory (default: ./data/{dataset_name})
         skip_if_exists: Skip if dataset already exists
     """
-    # Load config
-    print(f"Loading config from: {config_path}")
-    config = OmegaConf.load(config_path)
+    # Load and merge config
+    config = load_config(config_path)
     
     # Extract dataset information
     dataset_path = config.data.dataset_path
