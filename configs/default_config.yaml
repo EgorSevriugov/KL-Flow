@@ -2,6 +2,10 @@
 # These parameters are typically not changed between experiments
 # Experiment-specific configs will override these defaults
 
+# Model module name (used for loading: models.{model_type}.{model.type})
+# Options: flow_matching_transformer, gpt_causal
+model_type: "flow_matching_transformer"
+
 # Model architecture defaults
 model:
     type: "FlowMatchingTransformer"  # Default model type
