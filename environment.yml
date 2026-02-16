@@ -1,4 +1,4 @@
-# Conda environment for KL-Flow (CUDA 12.6)
+# Conda environment for KL-Flow (latest PyTorch + CUDA 12.4; runs on 12.6 drivers)
 # Create: conda env create -f environment.yml
 # Activate: conda activate kl-flow
 
@@ -10,9 +10,9 @@ channels:
   - defaults
 dependencies:
   - python=3.11
-  # PyTorch with CUDA 12.6 from conda (avoids Triton/gcc issues when CUDA is in env)
-  - pytorch=2.5.1
-  - pytorch-cuda=12.6
+  # Latest PyTorch with CUDA 12.4 (highest CUDA in conda; runs on 12.6 drivers)
+  - pytorch
+  - pytorch-cuda=12.4
   - pip
   - pip:
     - transformers==4.46.3
