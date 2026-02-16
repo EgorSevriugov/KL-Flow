@@ -89,31 +89,38 @@ def resize_model_embeddings(model, new_vocab_size, old_vocab_size=None):
     # Try to detect model architecture and resize appropriately
     if hasattr(model, 'token_emb') and hasattr(model.token_emb, 'weight'):
         # For models using Linear embedding layer (new models)
+        # token_emb: (vocab_size, n_embd) -> weight shape (n_embd, vocab_size)
+        # lm_head: (n_embd, vocab_size) -> weight shape (vocab_size, n_embd)
         n_embd = model.n_embd
         
-        # Resize input embedding
-        old_weight = model.token_emb.weight.data
+        # Resize input embedding: weight (n_embd, vocab_size)
+        old_weight = model.token_emb.weight.data.clone()
         model.token_emb = nn.Linear(new_vocab_size, n_embd, bias=False)
-        model.token_emb.weight.data[:old_weight.size(0)] = old_weight
+        copy_vocab = min(old_weight.size(1), new_vocab_size)
+        model.token_emb.weight.data[:, :copy_vocab] = old_weight[:, :copy_vocab]
         
-        # Resize output head
-        old_weight = model.lm_head.weight.data
+        # Resize output head: weight (vocab_size, n_embd)
+        old_weight = model.lm_head.weight.data.clone()
         model.lm_head = nn.Linear(n_embd, new_vocab_size, bias=False)
-        model.lm_head.weight.data[:old_weight.size(0)] = old_weight
+        copy_vocab = min(old_weight.size(0), new_vocab_size)
+        model.lm_head.weight.data[:copy_vocab, :] = old_weight[:copy_vocab, :]
         
     elif hasattr(model, 'transformer') and hasattr(model.transformer, 'wte'):
         # For legacy models using transformer.wte
+        # wte weight (n_embd, vocab_size), lm_head weight (vocab_size, n_embd)
         n_embd = model.config.n_embd if hasattr(model, 'config') else model.n_embd
         
         # Resize input embedding
-        old_weight = model.transformer.wte.weight.data
-        model.transformer.wte = nn.Linear(new_vocab_size, n_embd, bias=False)
-        model.transformer.wte.weight.data[:old_weight.size(0)] = old_weight
+        old_weight = model.transformer.wte.weight.data.clone()
+        model.transformer.wte = nn.Embedding(new_vocab_size, n_embd)
+        copy_vocab = min(old_weight.size(0), new_vocab_size)
+        model.transformer.wte.weight.data[:copy_vocab, :] = old_weight[:copy_vocab, :]
         
         # Resize output head
-        old_weight = model.lm_head.weight.data
+        old_weight = model.lm_head.weight.data.clone()
         model.lm_head = nn.Linear(n_embd, new_vocab_size, bias=False)
-        model.lm_head.weight.data[:old_weight.size(0)] = old_weight
+        copy_vocab = min(old_weight.size(0), new_vocab_size)
+        model.lm_head.weight.data[:copy_vocab, :] = old_weight[:copy_vocab, :]
     else:
         print("Warning: Could not detect model architecture for embedding resize")
     
