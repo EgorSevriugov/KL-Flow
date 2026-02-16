@@ -49,8 +49,8 @@ botocore==1.35.76
 # ============================================================================
 # Optimizer (Muon)
 # ============================================================================
-# Install Muon optimizer from GitHub
-git+https://github.com/KellerJordan/Muon.git@main
+# Install Muon optimizer from GitHub (default branch is master)
+git+https://github.com/KellerJordan/Muon.git
 
 # ============================================================================
 # Optional Development Tools
