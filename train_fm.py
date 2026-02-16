@@ -263,7 +263,7 @@ class FlowMatchingTrainer(Trainer):
     Standard HuggingFace Trainer with custom loss computation for flow matching.
     """
     
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None, **kwargs):
         """
         Compute flow matching loss.
         """
