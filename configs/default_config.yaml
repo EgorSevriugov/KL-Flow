@@ -41,8 +41,9 @@ training_config:
     device_batch_size: 16      # Per-device batch size (effective = device_batch_size * world_size)
     batch_size: 128           # Deprecated: use reference_batch_size / device_batch_size (kept for compatibility)
     val_loss_every: 1000       # Validation frequency (steps)
-    save_every: 1000         # Checkpoint save frequency (steps)
+    save_every: 10000         # Checkpoint save frequency (steps)
     num_tokens_to_train: 1.0  # Billions of tokens to train on
+    dataloader_prefetch_factor: 4  # Batches to prefetch per worker (2 = PyTorch default when num_workers > 0)
     pretrain: null           # Path to pretrained checkpoint (optional)
     checkpoint: null         # Path to resume from checkpoint (optional)
 

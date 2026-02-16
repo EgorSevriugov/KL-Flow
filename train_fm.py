@@ -260,7 +260,15 @@ class FlowMatchingTrainer(Trainer):
     """
     Standard HuggingFace Trainer with custom loss computation for flow matching.
     """
-    
+
+    def get_train_dataloader(self):
+        """Build train dataloader with prefetch_factor from config (for precomputing batches)."""
+        prefetch = config.training_config.get("dataloader_prefetch_factor", 4)
+        if getattr(self.args, "dataloader_num_workers", 0) > 0:
+            # Ensure prefetch_factor is set (works even if TrainingArguments didn't accept it at init)
+            setattr(self.args, "dataloader_prefetch_factor", prefetch)
+        return super().get_train_dataloader()
+
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None, **kwargs):
         """
         Compute flow matching loss.
@@ -512,12 +520,13 @@ def main():
         eval_steps=config.training_config.val_loss_every if config.training_config.val_loss_every > 0 else None,
         save_strategy="steps",
         save_steps=config.training_config.save_every,
-        save_total_limit=2,
+        save_total_limit=1,  # only last checkpoint (overwritten every save_every)
         logging_steps=1,
         logging_first_step=True,
         logging_dir=f'{output_dir}/logs',
         bf16=True,
-        dataloader_num_workers=0,
+        dataloader_num_workers=8,
+        dataloader_prefetch_factor=config.training_config.get("dataloader_prefetch_factor", 4),
         remove_unused_columns=False,
         ddp_find_unused_parameters=False,
         local_rank=int(os.environ.get('LOCAL_RANK', -1)),
