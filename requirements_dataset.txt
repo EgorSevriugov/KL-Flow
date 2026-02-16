@@ -1,3 +1,10 @@
+# DEPRECATED: Use requirements.txt instead
+# This file is kept for backwards compatibility only
+#
+# For new installations, please use:
+#   requirements.txt (full dependencies with specific versions for CUDA 12.6)
+#   pyproject.toml (for uv and modern Python tooling)
+#
 # Requirements for the new dataset system
 # Install with: pip install -r requirements_dataset.txt
 

@@ -6,15 +6,39 @@ Training flow matching models for text generation using standard tools (HuggingF
 
 ### 1. Installation
 
+**Requirements:** CUDA 12.6 (or compatible CUDA version)
+
+#### Option A: Using UV (Recommended)
+
+[UV](https://github.com/astral-sh/uv) is a fast Python package installer. Install it first:
 ```bash
-pip install -r requirements_dataset.txt
+# Windows (PowerShell)
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Linux/macOS
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Or install manually:
+Then install KL-Flow dependencies:
 ```bash
-pip install torch datasets transformers accelerate omegaconf tensorboard
-pip install git+https://github.com/KellerJordan/Muon.git
+uv pip install -r requirements.txt
 ```
+
+Or use with uv's built-in environment management:
+```bash
+uv sync
+uv run python train_fm.py configs/config_tinystories_unconditional.yaml
+```
+
+#### Option B: Using pip
+
+```bash
+pip install -r requirements.txt
+```
+
+**Note:** The requirements file is optimized for CUDA 12.6. For other CUDA versions, you may need to adjust the PyTorch installation:
+- CUDA 11.8: Use `--index-url https://download.pytorch.org/whl/cu118`
+- CUDA 12.1: Use `--index-url https://download.pytorch.org/whl/cu121`
 
 ### 2. Download Dataset
 
@@ -311,6 +335,30 @@ data:
 ```bash
 python download_dataset.py configs/my_dataset.yaml
 torchrun --nproc_per_node=8 train_fm.py configs/my_dataset.yaml
+```
+
+## Project Files
+
+### Configuration Files
+- `requirements.txt` - Pinned dependencies for CUDA 12.6 (recommended)
+- `pyproject.toml` - Modern Python project configuration for UV
+- `requirements_dataset.txt` - Legacy requirements file (deprecated)
+
+### Setup Scripts
+- `setup_uv.ps1` - Automated setup for Windows (PowerShell)
+- `setup_uv.sh` - Automated setup for Linux/macOS (Bash)
+- `SETUP.md` - Detailed setup guide with troubleshooting
+
+### Quick Setup
+**Windows:**
+```powershell
+powershell -ExecutionPolicy Bypass -File setup_uv.ps1
+```
+
+**Linux/macOS:**
+```bash
+chmod +x setup_uv.sh
+./setup_uv.sh
 ```
 
 ## Citation
