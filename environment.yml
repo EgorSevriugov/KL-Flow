@@ -1,0 +1,33 @@
+# Conda environment for KL-Flow (CUDA 12.6)
+# Create: conda env create -f environment.yml
+# Activate: conda activate kl-flow
+
+name: kl-flow
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  # PyTorch with CUDA 12.6 from conda (avoids Triton/gcc issues when CUDA is in env)
+  - pytorch=2.5.1
+  - pytorch-cuda=12.6
+  - pip
+  - pip:
+    - transformers==4.46.3
+    - datasets==3.1.0
+    - accelerate==1.1.1
+    - huggingface-hub==0.26.2
+    - tokenizers==0.20.3
+    - evaluate==0.4.3
+    - scipy==1.14.1
+    - omegaconf==2.3.0
+    - tensorboard==2.18.0
+    - wandb==0.18.7
+    - numpy==1.26.4
+    - tqdm==4.67.1
+    - tiktoken==0.8.0
+    - boto3==1.35.76
+    - botocore==1.35.76
+    - git+https://github.com/KellerJordan/Muon.git

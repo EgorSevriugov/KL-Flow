@@ -473,11 +473,24 @@ def main():
         model = load_checkpoint(model, ckpt_path, device="cpu", strict=False)
         print(f"Model loaded from checkpoint: {ckpt_path}")
     
-    # Compile model
+    # Compile model (requires Triton; if gcc fails, set CUDA_HOME and ensure gcc finds CUDA headers)
     if hasattr(torch, '_inductor') and hasattr(torch._inductor, 'config'):
         torch._inductor.config.coordinate_descent_tuning = True
-    model = torch.compile(model)
-    
+    try:
+        model = torch.compile(model)
+        print("Model compiled with torch.compile")
+    except Exception as e:
+        err = str(e)
+        if "gcc" in err.lower() or "triton" in err.lower() or "CalledProcessError" in err:
+            print(
+                "\nTriton compilation failed (gcc/CUDA). To fix:\n"
+                "  1. Set CUDA_HOME to your CUDA install, e.g.: export CUDA_HOME=/usr/local/cuda\n"
+                "  2. Ensure gcc can find CUDA headers: install system CUDA toolkit (e.g. cuda-nvcc-12-6)\n"
+                "  3. Or run in a conda env with: conda install cuda-nvcc -c nvidia\n"
+                "  4. Verify: echo $CUDA_HOME && ls $CUDA_HOME/include/cuda.h\n"
+            )
+        raise
+
     # No gradient accumulation: LR and steps are tuned for effective_batch_size
     gradient_accumulation_steps = 1
     ref_batch = config.training_config.get("reference_batch_size", 128)

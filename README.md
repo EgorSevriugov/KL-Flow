@@ -30,7 +30,40 @@ uv sync
 uv run python train_fm.py configs/config_tinystories_unconditional.yaml
 ```
 
-#### Option B: Using pip
+#### Option B: Using Conda
+
+Conda installs PyTorch and CUDA toolkit into the environment, which often fixes Triton/gcc compilation issues (e.g. when `torch.compile` fails under uv/pip).
+
+**Create the environment:**
+```bash
+conda env create -f environment.yml
+```
+
+**Activate and run:**
+```bash
+conda activate kl-flow
+
+# Download dataset
+python download_dataset.py configs/config_tinystories_unconditional.yaml
+
+# Train (single GPU)
+python train_fm.py configs/config_tinystories_unconditional.yaml
+
+# Train (multi-GPU)
+torchrun --nproc_per_node=8 train_fm.py configs/config_tinystories_unconditional.yaml
+```
+
+**Other useful commands:**
+```bash
+conda activate kl-flow          # activate before running any script
+conda deactivate                # leave the environment
+conda env remove -n kl-flow     # delete the environment
+conda env update -f environment.yml  # update env after changing environment.yml
+```
+
+For other CUDA versions with Conda: edit `environment.yml` and set `pytorch-cuda=12.1` (or `11.8`) to match your driver.
+
+#### Option C: Using pip
 
 ```bash
 pip install -r requirements.txt
@@ -336,6 +369,35 @@ data:
 python download_dataset.py configs/my_dataset.yaml
 torchrun --nproc_per_node=8 train_fm.py configs/my_dataset.yaml
 ```
+
+## Troubleshooting
+
+### Triton / torch.compile: gcc or build failure
+
+Training uses `torch.compile()` by default. If you see errors like `CalledProcessError: Command '['/usr/bin/gcc', ...' or "cuda.h: No such file"`, Triton is failing to build its launcher because gcc cannot find the CUDA toolkit.
+
+**Fix (pick one that matches your setup):**
+
+1. **Set CUDA_HOME** to your CUDA installation (required for gcc to find headers and libs):
+   ```bash
+   export CUDA_HOME=/usr/local/cuda   # or /opt/cuda, or your actual path
+   export PATH=$CUDA_HOME/bin:$PATH
+   export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+   ```
+   Verify: `ls $CUDA_HOME/include/cuda.h` and `ls $CUDA_HOME/lib64/libcudart.so` should exist.
+
+2. **Install system CUDA toolkit** so gcc can link (conda cudatoolkit alone is often not enough):
+   - Ubuntu: `sudo apt install cuda-nvcc-12-6` (or your CUDA version) and ensure `nvcc` is in PATH.
+   - Or install full [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) and set `CUDA_HOME` to its path.
+
+3. **Conda** (alternative): use an env that provides CUDA for compilation:
+   ```bash
+   conda install cuda-nvcc -c nvidia
+   # set CUDA_HOME to conda env, e.g. $CONDA_PREFIX
+   export CUDA_HOME=$CONDA_PREFIX
+   ```
+
+After fixing the environment, re-run training; the model will compile on first use.
 
 ## Project Files
 
