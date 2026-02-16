@@ -41,10 +41,9 @@ def load_model(config, fm_loss_func=None, tokenizer=None):
         # Create model config dict excluding 'type' field
         model_config = {k: v for k, v in config.model.items() if k != 'type'}
         
-        # Update vocab_size from tokenizer if not specified
+        # vocab_size is always taken from tokenizer when provided (no resizing later)
         if tokenizer is not None:
-            if 'vocab_size' not in model_config or model_config['vocab_size'] is None:
-                model_config['vocab_size'] = len(tokenizer)
+            model_config['vocab_size'] = len(tokenizer)
         
         # Create model with loss function if provided
         if fm_loss_func is not None:
@@ -65,64 +64,6 @@ def load_model(config, fm_loss_func=None, tokenizer=None):
             f"    n_head: {config.model.n_head}\n"
             f"See NEW_MODELS_GUIDE.md for migration instructions."
         )
-    
-    return model
-
-
-def resize_model_embeddings(model, new_vocab_size, old_vocab_size=None):
-    """
-    Resize model token embeddings to accommodate new vocabulary size
-    
-    Args:
-        model: Model instance
-        new_vocab_size: New vocabulary size
-        old_vocab_size: Old vocabulary size (optional, for validation)
-    
-    Returns:
-        Updated model
-    """
-    if old_vocab_size is not None and new_vocab_size == old_vocab_size:
-        return model
-    
-    print(f"Resizing model embeddings to {new_vocab_size}")
-    
-    # Try to detect model architecture and resize appropriately
-    if hasattr(model, 'token_emb') and hasattr(model.token_emb, 'weight'):
-        # For models using Linear embedding layer (new models)
-        # token_emb: (vocab_size, n_embd) -> weight shape (n_embd, vocab_size)
-        # lm_head: (n_embd, vocab_size) -> weight shape (vocab_size, n_embd)
-        n_embd = model.n_embd
-        
-        # Resize input embedding: weight (n_embd, vocab_size)
-        old_weight = model.token_emb.weight.data.clone()
-        model.token_emb = nn.Linear(new_vocab_size, n_embd, bias=False)
-        copy_vocab = min(old_weight.size(1), new_vocab_size)
-        model.token_emb.weight.data[:, :copy_vocab] = old_weight[:, :copy_vocab]
-        
-        # Resize output head: weight (vocab_size, n_embd)
-        old_weight = model.lm_head.weight.data.clone()
-        model.lm_head = nn.Linear(n_embd, new_vocab_size, bias=False)
-        copy_vocab = min(old_weight.size(0), new_vocab_size)
-        model.lm_head.weight.data[:copy_vocab, :] = old_weight[:copy_vocab, :]
-        
-    elif hasattr(model, 'transformer') and hasattr(model.transformer, 'wte'):
-        # For legacy models using transformer.wte
-        # wte weight (n_embd, vocab_size), lm_head weight (vocab_size, n_embd)
-        n_embd = model.config.n_embd if hasattr(model, 'config') else model.n_embd
-        
-        # Resize input embedding
-        old_weight = model.transformer.wte.weight.data.clone()
-        model.transformer.wte = nn.Embedding(new_vocab_size, n_embd)
-        copy_vocab = min(old_weight.size(0), new_vocab_size)
-        model.transformer.wte.weight.data[:copy_vocab, :] = old_weight[:copy_vocab, :]
-        
-        # Resize output head
-        old_weight = model.lm_head.weight.data.clone()
-        model.lm_head = nn.Linear(n_embd, new_vocab_size, bias=False)
-        copy_vocab = min(old_weight.size(0), new_vocab_size)
-        model.lm_head.weight.data[:copy_vocab, :] = old_weight[:copy_vocab, :]
-    else:
-        print("Warning: Could not detect model architecture for embedding resize")
     
     return model
 

@@ -13,7 +13,7 @@ import torch._inductor.config as inductor_config
 from omegaconf import OmegaConf
 from transformers import AutoTokenizer
 from datasets import load_from_disk, load_dataset
-from model_utils import load_class, load_model, load_checkpoint, resize_model_embeddings
+from model_utils import load_class, load_model, load_checkpoint
 
 
 # -----------------------------------------------------------------------------
@@ -377,12 +377,8 @@ def main():
         pin_memory=True,
     )
     
-    # Load model
+    # Load model (vocab_size = len(tokenizer))
     model = load_model(config, fm_loss_func=fm.loss, tokenizer=tokenizer)
-    
-    # Resize token embeddings if special tokens were added
-    if len(tokenizer) != config.model.vocab_size:
-        model = resize_model_embeddings(model, len(tokenizer), config.model.vocab_size)
     
     # Load checkpoint
     model = load_checkpoint(model, ckpt_path, device="cpu", strict=False)

@@ -16,7 +16,7 @@ from datasets import load_from_disk, load_dataset
 from muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 
 # Import model utilities
-from model_utils import load_class, load_model, resize_model_embeddings, load_checkpoint
+from model_utils import load_class, load_model, load_checkpoint
 
 
 # -----------------------------------------------------------------------------
@@ -465,12 +465,8 @@ def main():
         condition=config.data.condition,
     )
     
-    # Create model
+    # Create model (vocab_size = len(tokenizer))
     model = load_model(config, fm_loss_func=None, tokenizer=tokenizer)
-    
-    # Resize token embeddings if special tokens were added
-    if len(tokenizer) != config.model.vocab_size:
-        model = resize_model_embeddings(model, len(tokenizer), config.model.vocab_size)
     
     # Load checkpoint if specified
     if ckpt_path is not None and os.path.isfile(ckpt_path):
