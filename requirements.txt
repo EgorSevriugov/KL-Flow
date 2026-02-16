@@ -8,8 +8,8 @@
 # ============================================================================
 # For CUDA 12.6, use PyTorch 2.5.1 or later
 --index-url https://download.pytorch.org/whl/cu126
+--extra-index-url https://pypi.org/simple
 torch==2.5.1
---index-url https://pypi.org/simple/
 
 # ============================================================================
 # HuggingFace Ecosystem
