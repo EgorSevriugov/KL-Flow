@@ -443,7 +443,7 @@ def main():
     )
     
     # Create model
-    model = load_model(config, fm_loss_func=fm.loss, tokenizer=tokenizer)
+    model = load_model(config, fm_loss_func=None, tokenizer=tokenizer)
     
     # Resize token embeddings if special tokens were added
     if len(tokenizer) != config.model.vocab_size:
