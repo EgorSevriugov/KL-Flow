@@ -1,0 +1,6 @@
+# CUDA toolkit for Triton (torch.compile) when using uv without conda.
+# Install after main requirements: uv pip install -r requirements.txt -r requirements-cuda.txt
+# Then run training via: ./scripts/uv_run_with_cuda.sh python train_fm.py configs/...
+# Provides cuda.h so gcc can compile Triton launchers (no admin / no conda).
+
+nvidia-cuda-nvcc

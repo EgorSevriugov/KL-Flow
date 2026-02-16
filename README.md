@@ -63,6 +63,27 @@ conda env update -f environment.yml  # update env after changing environment.yml
 
 For other CUDA versions with Conda: edit `environment.yml` and set `pytorch-cuda=12.1` (or `11.8`) to match your driver.
 
+#### Option B2: UV only (no conda, no admin)
+
+If you want to use **uv only** and don't have system CUDA or conda:
+
+1. **Install dependencies including the CUDA toolkit (pip package for Triton):**
+   ```bash
+   uv pip install -r requirements.txt -r requirements-cuda.txt
+   ```
+
+2. **Run training via the wrapper** so Triton’s gcc can find CUDA headers:
+   ```bash
+   chmod +x scripts/uv_run_with_cuda.sh
+   ./scripts/uv_run_with_cuda.sh python train_fm.py configs/config_tinystories_unconditional.yaml
+   ```
+   For multi-GPU:
+   ```bash
+   ./scripts/uv_run_with_cuda.sh torchrun --nproc_per_node=8 train_fm.py configs/config_tinystories_unconditional.yaml
+   ```
+
+The script sets `CUDA_HOME` from the pip-installed `nvidia-cuda-nvcc` package so `torch.compile` (Triton) can build its launcher. If you already have `CUDA_HOME` set (e.g. from a system or conda CUDA), you can run `uv run python ...` directly.
+
 #### Option C: Using pip
 
 ```bash
