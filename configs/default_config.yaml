@@ -35,11 +35,12 @@ optimizer:
     warmup_iters: 0               # Linear warmup steps
     warmdown_iters: 1000          # Linear warmdown steps
 
-# Training defaults
+# Training defaults (no gradient accumulation; LR scaled by effective batch size)
 training_config:
-    batch_size: 128          # Global batch size (across all GPUs)
-    device_batch_size: 16    # Batch size per device
-    val_loss_every: 1000     # Validation frequency (steps)
+    reference_batch_size: 128  # LR is tuned for this batch size; scaled linearly for other sizes
+    device_batch_size: 16      # Per-device batch size (effective = device_batch_size * world_size)
+    batch_size: 128           # Deprecated: use reference_batch_size / device_batch_size (kept for compatibility)
+    val_loss_every: 1000       # Validation frequency (steps)
     save_every: 1000         # Checkpoint save frequency (steps)
     num_tokens_to_train: 1.0  # Billions of tokens to train on
     pretrain: null           # Path to pretrained checkpoint (optional)

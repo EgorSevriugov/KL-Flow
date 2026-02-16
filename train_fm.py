@@ -282,10 +282,16 @@ class FlowMatchingTrainer(Trainer):
         """
         if self.optimizer is None:
             # Get hyperparameters from config
-            muon_lr = config.optimizer.muon_learning_rate
-            embed_lr = config.optimizer.embed_learning_rate
             weight_decay = config.optimizer.weight_decay
-            
+
+            # Scale learning rates linearly with effective batch size (no grad accumulation)
+            ref_batch = config.training_config.get("reference_batch_size", 128)
+            world_size = dist.get_world_size() if dist.is_initialized() else 1
+            effective_batch_size = config.training_config.device_batch_size * world_size
+            lr_scale = effective_batch_size / ref_batch
+            muon_lr = config.optimizer.muon_learning_rate * lr_scale
+            embed_lr = config.optimizer.embed_learning_rate * lr_scale
+
             # Get raw model (unwrapped from DDP/compile)
             raw_model = self.model
             if hasattr(raw_model, 'module'):
@@ -397,9 +403,13 @@ def main():
     elif config.training_config.pretrain is not None:
         ckpt_path = config.training_config.pretrain
     
-    # Calculate training steps
+    # Effective batch size (no gradient accumulation): per-device batch × num devices
+    world_size = int(os.environ.get('WORLD_SIZE', 1))
+    effective_batch_size = config.training_config.device_batch_size * world_size
+
+    # Calculate training steps from target token count
     num_tokens = config.training_config.num_tokens_to_train * 10**9
-    tokens_per_step = config.training_config.batch_size * config.data.sequence_length
+    tokens_per_step = effective_batch_size * config.data.sequence_length
     num_training_steps = int(num_tokens / tokens_per_step)
     
     # Load tokenizer
@@ -472,10 +482,13 @@ def main():
         torch._inductor.config.coordinate_descent_tuning = True
     model = torch.compile(model)
     
-    # Calculate gradient accumulation steps
-    world_size = int(os.environ.get('WORLD_SIZE', 1))
-    gradient_accumulation_steps = config.training_config.batch_size // (config.training_config.device_batch_size * world_size)
-    
+    # No gradient accumulation: LR and steps are tuned for effective_batch_size
+    gradient_accumulation_steps = 1
+    ref_batch = config.training_config.get("reference_batch_size", 128)
+    lr_scale = effective_batch_size / ref_batch
+    if lr_scale != 1.0:
+        print(f"Effective batch size {effective_batch_size} (ref={ref_batch}): scaling LR by {lr_scale:.4f}")
+
     # Training arguments
     output_dir = f'logs/{config.training_config.run_name}'
     os.makedirs(output_dir, exist_ok=True)

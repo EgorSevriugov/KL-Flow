@@ -216,7 +216,7 @@ class Hyperparameters:
     input_bin_pretrain = config.data.input_bin_pretrain
     input_val_bin_pretrain = config.data.input_val_bin_pretrain
     num_tokens_to_train = config.training_config.num_tokens_to_train * 10**9
-    batch_size = config.training_config.batch_size 
+    batch_size = config.training_config.get("batch_size", config.training_config.get("reference_batch_size", 128))
     device_batch_size = config.training_config.device_batch_size
     sequence_length = config.data.sequence_length
     embed_learning_rate = config.optimizer.embed_learning_rate
