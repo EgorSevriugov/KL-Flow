@@ -297,23 +297,36 @@ class FlowMatchingTrainer(Trainer):
             # 1. Hidden weights (2D matrices in transformer blocks) -> use Muon
             # 2. Everything else (embeddings, biases, gains, lm_head) -> use Adam
             
-            # Collect all transformer block parameters
-            transformer_params = list(raw_model.transformer.h.parameters())
-            try:
-                transformer_params += [raw_model.skip_weights]
-            except:
-                pass
+            # Support both FlowMatchingTransformer (blocks) and GPT-style (transformer.h)
+            if hasattr(raw_model, 'blocks'):
+                # FlowMatchingTransformer: blocks, token_emb, time_embedder, lm_head
+                transformer_params = list(raw_model.blocks.parameters())
+                nonhidden_params = (
+                    list(raw_model.token_emb.parameters()) +
+                    list(raw_model.time_embedder.parameters()) +
+                    list(raw_model.lm_head.parameters())
+                )
+            elif hasattr(raw_model, 'transformer'):
+                # GPT-style: transformer.h, transformer.wte, t_embedder, lm_head
+                transformer_params = list(raw_model.transformer.h.parameters())
+                try:
+                    transformer_params += [raw_model.skip_weights]
+                except AttributeError:
+                    pass
+                nonhidden_params = (
+                    list(raw_model.transformer.wte.parameters()) +
+                    list(raw_model.t_embedder.parameters()) +
+                    list(raw_model.lm_head.parameters())
+                )
+            else:
+                raise AttributeError(
+                    "Model has neither 'blocks' (FlowMatchingTransformer) nor 'transformer' (GPT-style). "
+                    "Cannot create Muon parameter groups."
+                )
             
             # Split transformer params by dimensionality
             hidden_weights = [p for p in transformer_params if p.ndim >= 2]
             hidden_gains_biases = [p for p in transformer_params if p.ndim < 2]
-            
-            # Other parameters (embeddings and lm_head)
-            nonhidden_params = (
-                list(raw_model.transformer.wte.parameters()) +
-                list(raw_model.t_embedder.parameters()) +
-                list(raw_model.lm_head.parameters())
-            )
             
             # Create parameter groups
             param_groups = [
