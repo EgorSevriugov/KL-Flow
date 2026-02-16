@@ -476,7 +476,7 @@ def main():
         torch._inductor.config.coordinate_descent_tuning = True
     try:
         # dynamic=True: allow variable sequence length per batch without recompilation
-        model = torch.compile(model, dynamic=True)
+        # model = torch.compile(model, dynamic=True)
         print("Model compiled with torch.compile (dynamic=True for variable sequence length)")
     except Exception as e:
         err = str(e)
