@@ -183,7 +183,7 @@ class FlowMatchingCollator:
                 combined_ids = prompt_ids + response_ids + [eos_token_id]
                 all_input_ids.append(combined_ids)
             
-            # Pad to max length in batch
+            # Pad to max length in batch (dynamic sequence length per batch)
             max_len_in_batch = min(max(len(ids) for ids in all_input_ids), self.max_length)
             padded_input_ids = []
             masks = []
@@ -195,7 +195,6 @@ class FlowMatchingCollator:
                 # Create mask: 1 for prompt (includes BOS and EOS), 0 for response and final EOS (to be generated)
                 mask = [1] * len(prompt_ids) + [0] * len(response_ids) + [0]
                 
-                # Pad
                 pad_len = max_len_in_batch - len(combined_ids)
                 if pad_len > 0:
                     combined_ids = combined_ids + [self.tokenizer.pad_token_id] * pad_len
@@ -221,7 +220,7 @@ class FlowMatchingCollator:
                 return_tensors=None,
             )
             
-            # Pad to max length in batch
+            # Pad to max length in batch (dynamic sequence length per batch)
             max_len_in_batch = min(max(len(ids) for ids in encoded["input_ids"]), self.max_length)
             padded_input_ids = []
             masks = []
@@ -230,7 +229,6 @@ class FlowMatchingCollator:
                 # Create mask: 1 for BOS token (first token), 0 for rest (to be generated)
                 mask = [1] + [0] * (len(ids) - 1)
                 
-                # Pad
                 pad_len = max_len_in_batch - len(ids)
                 if pad_len > 0:
                     ids = ids + [self.tokenizer.pad_token_id] * pad_len
@@ -477,8 +475,9 @@ def main():
     if hasattr(torch, '_inductor') and hasattr(torch._inductor, 'config'):
         torch._inductor.config.coordinate_descent_tuning = True
     try:
-        model = torch.compile(model)
-        print("Model compiled with torch.compile")
+        # dynamic=True: allow variable sequence length per batch without recompilation
+        model = torch.compile(model, dynamic=True)
+        print("Model compiled with torch.compile (dynamic=True for variable sequence length)")
     except Exception as e:
         err = str(e)
         if "gcc" in err.lower() or "triton" in err.lower() or "CalledProcessError" in err:
