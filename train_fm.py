@@ -240,15 +240,11 @@ class FlowMatchingCollator:
             input_ids = torch.tensor(padded_input_ids, dtype=torch.long)
             condition_mask = torch.tensor(masks, dtype=torch.bool)
         
-        # Apply flow matching
-        x1 = input_ids
-        x0 = self.fm.sampler_0(x1)
-        t, xt = self.fm.interpolate(x0, x1, mask=condition_mask)
-        
+        # Flow matching (sampler_0 + interpolate) is done on device in compute_loss for speed
         return {
-            "t": t,
-            "xt": xt,
-            "labels": x1,
+            "input_ids": input_ids,
+            "condition_mask": condition_mask,
+            "labels": input_ids,
         }
 
 
@@ -271,15 +267,19 @@ class FlowMatchingTrainer(Trainer):
 
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None, **kwargs):
         """
-        Compute flow matching loss.
+        Compute flow matching loss. FM (sampler_0 + interpolate) runs on device for speed.
         """
-        t = inputs.get("t")
-        xt = inputs.get("xt")
-        labels = inputs.get("labels")
-        
-        # Forward pass
+        input_ids = inputs["input_ids"]
+        condition_mask = inputs["condition_mask"]
+        labels = inputs["labels"]
+
+        # Flow matching on device (avoids CPU FM and large CPU->GPU transfer of xt)
+        fm = self.data_collator.fm
+        x1 = input_ids
+        x0 = fm.sampler_0(x1)
+        t, xt = fm.interpolate(x0, x1, mask=condition_mask)
+
         _, loss = model(t, xt, labels, return_logits=False)
-        
         return (loss, {"loss": loss}) if return_outputs else loss
     
     def create_optimizer(self):
@@ -350,10 +350,15 @@ class FlowMatchingTrainer(Trainer):
 # -----------------------------------------------------------------------------
 
 def main():
+    # TF32 matmuls on Ampere+ GPUs (faster, minimal accuracy impact)
+    if torch.cuda.is_available():
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+
     # Determine checkpoint to load
     ckpt_path = None
     resume_from_checkpoint = None
-    
+
     if config.training_config.checkpoint is not None:
         resume_from_checkpoint = config.training_config.checkpoint
         ckpt_path = config.training_config.checkpoint
@@ -430,24 +435,20 @@ def main():
         model = load_checkpoint(model, ckpt_path, device="cpu", strict=False)
         print(f"Model loaded from checkpoint: {ckpt_path}")
     
-    # Compile model (requires Triton; if gcc fails, set CUDA_HOME and ensure gcc finds CUDA headers)
-    if hasattr(torch, '_inductor') and hasattr(torch._inductor, 'config'):
-        torch._inductor.config.coordinate_descent_tuning = True
-    # try:
-    #     # dynamic=True: allow variable sequence length per batch without recompilation
-    #     model = torch.compile(model, dynamic=True)
-    #     print("Model compiled with torch.compile (dynamic=True for variable sequence length)")
-    # except Exception as e:
-    #     err = str(e)
-    #     if "gcc" in err.lower() or "triton" in err.lower() or "CalledProcessError" in err:
-    #         print(
-    #             "\nTriton compilation failed (gcc/CUDA). To fix:\n"
-    #             "  1. Set CUDA_HOME to your CUDA install, e.g.: export CUDA_HOME=/usr/local/cuda\n"
-    #             "  2. Ensure gcc can find CUDA headers: install system CUDA toolkit (e.g. cuda-nvcc-12-6)\n"
-    #             "  3. Or run in a conda env with: conda install cuda-nvcc -c nvidia\n"
-    #             "  4. Verify: echo $CUDA_HOME && ls $CUDA_HOME/include/cuda.h\n"
-    #         )
-    #     raise
+    # Optional: torch.compile (faster forward/backward; needs Triton/CUDA toolchain)
+    if config.training_config.get("compile", False):
+        if hasattr(torch, '_inductor') and hasattr(torch._inductor, 'config'):
+            torch._inductor.config.coordinate_descent_tuning = True
+        try:
+            model = torch.compile(model, dynamic=True)
+            print("Model compiled with torch.compile (dynamic=True)")
+        except Exception as e:
+            err = str(e)
+            if "gcc" in err.lower() or "triton" in err.lower() or "CalledProcessError" in err:
+                print(
+                    "Triton compile failed. Set CUDA_HOME and ensure gcc finds CUDA headers, or set training_config.compile: false."
+                )
+            raise
 
     # No gradient accumulation: LR and steps are tuned for effective_batch_size
     gradient_accumulation_steps = 1
@@ -478,6 +479,7 @@ def main():
         bf16=True,
         dataloader_num_workers=16,
         dataloader_prefetch_factor=config.training_config.get("dataloader_prefetch_factor", 4),
+        dataloader_persistent_workers=config.training_config.get("dataloader_persistent_workers", True),
         remove_unused_columns=False,
         ddp_find_unused_parameters=False,
         local_rank=int(os.environ.get('LOCAL_RANK', -1)),

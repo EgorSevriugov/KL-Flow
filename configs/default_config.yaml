@@ -44,6 +44,8 @@ training_config:
     save_every: 10000         # Checkpoint save frequency (steps)
     num_tokens_to_train: 1.0  # Billions of tokens to train on
     dataloader_prefetch_factor: 4  # Batches to prefetch per worker (2 = PyTorch default when num_workers > 0)
+    dataloader_persistent_workers: true  # Keep workers alive between batches (faster; more RAM)
+    compile: false            # Set true to use torch.compile (faster; requires Triton/CUDA)
     pretrain: null           # Path to pretrained checkpoint (optional)
     checkpoint: null         # Path to resume from checkpoint (optional)
 
