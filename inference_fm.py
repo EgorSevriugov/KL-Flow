@@ -378,7 +378,7 @@ def main():
     )
     
     # Load model (vocab_size = len(tokenizer))
-    model = load_model(config, fm_loss_func=fm.loss, tokenizer=tokenizer)
+    model = load_model(config, tokenizer=tokenizer)
     
     # Load checkpoint
     model = load_checkpoint(model, ckpt_path, device="cpu", strict=False)
