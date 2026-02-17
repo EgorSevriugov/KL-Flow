@@ -287,10 +287,7 @@ class FlowMatchingTrainer(Trainer):
         Create MuonWithAuxAdam optimizer with proper parameter grouping.
         """
         if self.optimizer is None:
-            # Get hyperparameters from config
             weight_decay = config.optimizer.weight_decay
-
-            # Scale learning rates linearly with effective batch size (no grad accumulation)
             ref_batch = config.training_config.get("reference_batch_size", 128)
             world_size = dist.get_world_size() if dist.is_initialized() else 1
             effective_batch_size = config.training_config.device_batch_size * world_size
@@ -298,65 +295,19 @@ class FlowMatchingTrainer(Trainer):
             muon_lr = config.optimizer.muon_learning_rate * lr_scale
             embed_lr = config.optimizer.embed_learning_rate * lr_scale
 
-            # Get raw model (unwrapped from DDP/compile)
             raw_model = self.model
             if hasattr(raw_model, 'module'):
                 raw_model = raw_model.module
             if hasattr(raw_model, '_orig_mod'):
                 raw_model = raw_model._orig_mod
-            
-            # Split parameters:
-            # 1. Hidden weights (2D matrices in transformer blocks) -> use Muon
-            # 2. Everything else (embeddings, biases, gains, lm_head) -> use Adam
-            
-            # Support both FlowMatchingTransformer (blocks) and GPT-style (transformer.h)
-            if hasattr(raw_model, 'blocks'):
-                # FlowMatchingTransformer: blocks, token_emb, time_embedder, lm_head
-                transformer_params = list(raw_model.blocks.parameters())
-                nonhidden_params = (
-                    list(raw_model.token_emb.parameters()) +
-                    list(raw_model.time_embedder.parameters()) +
-                    list(raw_model.lm_head.parameters())
-                )
-            elif hasattr(raw_model, 'transformer'):
-                # GPT-style: transformer.h, transformer.wte, t_embedder, lm_head
-                transformer_params = list(raw_model.transformer.h.parameters())
-                try:
-                    transformer_params += [raw_model.skip_weights]
-                except AttributeError:
-                    pass
-                nonhidden_params = (
-                    list(raw_model.transformer.wte.parameters()) +
-                    list(raw_model.t_embedder.parameters()) +
-                    list(raw_model.lm_head.parameters())
-                )
-            else:
-                raise AttributeError(
-                    "Model has neither 'blocks' (FlowMatchingTransformer) nor 'transformer' (GPT-style). "
-                    "Cannot create Muon parameter groups."
-                )
-            
-            # Split transformer params by dimensionality
-            hidden_weights = [p for p in transformer_params if p.ndim >= 2]
-            hidden_gains_biases = [p for p in transformer_params if p.ndim < 2]
-            
-            # Create parameter groups
+
+            all_params = list(raw_model.parameters())
+            two_d = [p for p in all_params if p.ndim >= 2]
+            other = [p for p in all_params if p.ndim < 2]
+
             param_groups = [
-                dict(
-                    params=hidden_weights,
-                    use_muon=True,
-                    lr=muon_lr,
-                    momentum=0.95,
-                    weight_decay=weight_decay,
-                ),
-                dict(
-                    params=hidden_gains_biases + nonhidden_params,
-                    use_muon=False,
-                    lr=embed_lr,
-                    betas=(0.9, 0.95),
-                    eps=1e-10,
-                    weight_decay=weight_decay,
-                ),
+                dict(params=two_d, use_muon=True, lr=muon_lr, momentum=0.95, weight_decay=weight_decay),
+                dict(params=other, use_muon=False, lr=embed_lr, betas=(0.9, 0.95), eps=1e-10, weight_decay=weight_decay),
             ]
             
             # Choose optimizer based on distributed setup
