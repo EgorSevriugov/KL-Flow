@@ -399,7 +399,8 @@ def main():
             return model(t, x, return_logits=True)[0]
     
     # Compile inference function
-    inference_mixed = torch.compile(fm.inference_mixed, dynamic=False)
+    # inference_mixed = torch.compile(fm.inference_mixed, dynamic=False)
+    inference_mixed = fm.inference_mixed
     
     # Create output directory in logs/{run_name}/inference/
     run_name = config.training_config.get("run_name", "unnamed")
