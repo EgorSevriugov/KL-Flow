@@ -477,7 +477,7 @@ def main():
         logging_first_step=True,
         logging_dir=f'{output_dir}/logs',
         bf16=True,
-        dataloader_num_workers=16,
+        dataloader_num_workers=8,
         dataloader_prefetch_factor=config.training_config.get("dataloader_prefetch_factor", 4),
         dataloader_persistent_workers=config.training_config.get("dataloader_persistent_workers", True),
         remove_unused_columns=False,
