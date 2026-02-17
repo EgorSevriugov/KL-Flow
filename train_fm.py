@@ -433,21 +433,21 @@ def main():
     # Compile model (requires Triton; if gcc fails, set CUDA_HOME and ensure gcc finds CUDA headers)
     if hasattr(torch, '_inductor') and hasattr(torch._inductor, 'config'):
         torch._inductor.config.coordinate_descent_tuning = True
-    try:
-        # dynamic=True: allow variable sequence length per batch without recompilation
-        # model = torch.compile(model, dynamic=True)
-        # print("Model compiled with torch.compile (dynamic=True for variable sequence length)")
-    except Exception as e:
-        err = str(e)
-        if "gcc" in err.lower() or "triton" in err.lower() or "CalledProcessError" in err:
-            print(
-                "\nTriton compilation failed (gcc/CUDA). To fix:\n"
-                "  1. Set CUDA_HOME to your CUDA install, e.g.: export CUDA_HOME=/usr/local/cuda\n"
-                "  2. Ensure gcc can find CUDA headers: install system CUDA toolkit (e.g. cuda-nvcc-12-6)\n"
-                "  3. Or run in a conda env with: conda install cuda-nvcc -c nvidia\n"
-                "  4. Verify: echo $CUDA_HOME && ls $CUDA_HOME/include/cuda.h\n"
-            )
-        raise
+    # try:
+    #     # dynamic=True: allow variable sequence length per batch without recompilation
+    #     model = torch.compile(model, dynamic=True)
+    #     print("Model compiled with torch.compile (dynamic=True for variable sequence length)")
+    # except Exception as e:
+    #     err = str(e)
+    #     if "gcc" in err.lower() or "triton" in err.lower() or "CalledProcessError" in err:
+    #         print(
+    #             "\nTriton compilation failed (gcc/CUDA). To fix:\n"
+    #             "  1. Set CUDA_HOME to your CUDA install, e.g.: export CUDA_HOME=/usr/local/cuda\n"
+    #             "  2. Ensure gcc can find CUDA headers: install system CUDA toolkit (e.g. cuda-nvcc-12-6)\n"
+    #             "  3. Or run in a conda env with: conda install cuda-nvcc -c nvidia\n"
+    #             "  4. Verify: echo $CUDA_HOME && ls $CUDA_HOME/include/cuda.h\n"
+    #         )
+    #     raise
 
     # No gradient accumulation: LR and steps are tuned for effective_batch_size
     gradient_accumulation_steps = 1
