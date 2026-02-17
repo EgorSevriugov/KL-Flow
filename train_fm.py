@@ -281,7 +281,16 @@ class FlowMatchingTrainer(Trainer):
 
         _, loss = model(t, xt, labels, return_logits=False)
         return (loss, {"loss": loss}) if return_outputs else loss
-    
+
+    def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
+        """
+        Run evaluation step. Uses same FM logic as compute_loss so model receives (t, xt, labels).
+        """
+        inputs = self._prepare_inputs(inputs)
+        with torch.no_grad():
+            loss = self.compute_loss(model, inputs, return_outputs=False)
+        return (loss, None, inputs.get("labels"))
+
     def create_optimizer(self):
         """
         Create MuonWithAuxAdam optimizer with proper parameter grouping.
