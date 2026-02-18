@@ -22,7 +22,7 @@ fm:
     type: "Logit"  # Default FM type: Logit, LogitEntropy, LogitUpdated, GPT, OneShot, LogitMask, DFM, Sphere, Dirichlet
 
 fm_config:
-    N: 1024      # Number of discretization steps
+    N: 512      # Number of discretization steps
     beta: 0.01   # Beta parameter for flow matching
     max_t: 0.3   # Maximum time for flow matching
     t_split: 0.28  # Time split for mixed inference

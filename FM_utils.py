@@ -5,6 +5,14 @@ import numpy as np
 from tqdm import tqdm
 
 
+def _inference_steps_from_mask(mask, default_n):
+    """Number of inference steps = number of tokens to generate (mask < 0.5). Max over batch."""
+    if mask is None:
+        return default_n
+    n = (mask < 0.5).sum(dim=1).max().item()
+    return max(1, int(n))
+
+
 def CE_loss_logit(model,t,xt,x1):
     l1_hat = model(t,xt)
     loss = torch.nn.CrossEntropyLoss()(torch.einsum("b...i->bi...",l1_hat),x1.argmax(dim=-1))
@@ -266,22 +274,23 @@ class Logit(object):
     def inference_mixed(self,model,x0, mask=None, k=1, t_split=None):
         if t_split is None:
             t_split = self.t_split
-        # thats = -torch.log(1-torch.linspace(0,self.max_t,self.N+1,device=x0.device))
-        thats = torch.linspace(0,self.max_that,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_local = self.max_that / n_steps
+        thats = torch.linspace(0,self.max_that,n_steps+1,device=x0.device)
         lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),torch.log(x0))
         xt = x0.clone()
         for that in tqdm(thats[:-1]):
             t = 1- torch.exp(-that)
             if t < t_split:
                 l1 = self.rhs(model,that[None].repeat(x0.size(0)), xt, k=-1)
-                lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),(1-self.step_size)*lt + self.step_size*l1)
+                lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),(1-step_size_local)*lt + step_size_local*l1)
                 xt =  lt.softmax(dim=-1)*(1-mask[...,None]) + x0*mask[...,None]
             else:
                 x1 = self.rhs_sample(model,that[None].repeat(x0.size(0)),xt,k=k)
                 x0_ = self.sampler_0(x1)
-                tdt = 1 - torch.exp(-that-self.step_size)[None].repeat(x1.size(0))
+                tdt = 1 - torch.exp(-that-step_size_local)[None].repeat(x1.size(0))
                 xt = torch.where(mask[...,None]>0.5, x0, self.interpolate(x0_,x1,t=tdt)[1])
             
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
@@ -290,10 +299,11 @@ class Logit(object):
     def inference_prefix(self,model,x0, prefix, k=1,mask=None,t_split=None):
         if t_split is None:
             t_split = self.t_split
-        # thats = -torch.log(1-torch.linspace(0,self.max_t,self.N+1,device=x0.device))
-        thats = torch.linspace(0,self.max_that,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_local = self.max_that / n_steps
+        thats = torch.linspace(0,self.max_that,n_steps+1,device=x0.device)
         lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),torch.log(x0))
         xt = x0.clone()
         for that in tqdm(thats[:-1]):
@@ -302,14 +312,14 @@ class Logit(object):
                 l1 = self.rhs(model,that[None].repeat(x0.size(0)), xt, k=-1)
                 prefix_logits = prefix * np.log(1-self.beta+self.beta/self.vocab_size) + (1-prefix) * np.log(self.beta/self.vocab_size)
                 l1 = torch.where(mask[...,None]>0.5,prefix_logits,l1)
-                lt = (1-self.step_size)*lt + self.step_size*l1
+                lt = (1-step_size_local)*lt + step_size_local*l1
                 xt =  lt.softmax(dim=-1)
             else:
                 x1 = self.rhs_sample(model,that[None].repeat(x0.size(0)),xt,k=k)
                 prefix_probs = prefix.argmax(dim=-1)
                 x1 = torch.where(mask>0.5,prefix_probs,x1)
                 x0_ = self.sampler_0(x1)
-                tdt = 1 - torch.exp(-that-self.step_size)[None].repeat(x1.size(0))
+                tdt = 1 - torch.exp(-that-step_size_local)[None].repeat(x1.size(0))
                 xt = self.interpolate(x0_,x1,t=tdt)[1]
             
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
@@ -385,22 +395,23 @@ class LogitEntropy(object):
             return (-logits.log_softmax(dim=-1) * logits.softmax(dim=-1)).sum(dim=-1)
         if t_split is None:
             t_split = self.t_split
-        # thats = -torch.log(1-torch.linspace(0,self.max_t,self.N+1,device=x0.device))
-        thats = torch.linspace(0,self.max_that,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_local = self.max_that / n_steps
+        thats = torch.linspace(0,self.max_that,n_steps+1,device=x0.device)
         lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),torch.log(x0))
         xt = x0.clone()
         for that in tqdm(thats[:-1]):
             t = 1- torch.exp(-that)
             if t < t_split:
                 l1 = self.rhs(model,that[None].repeat(x0.size(0)), xt, k=-1)
-                lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),(1-self.step_size)*lt + self.step_size*l1)
+                lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),(1-step_size_local)*lt + step_size_local*l1)
                 xt =  lt.softmax(dim=-1)*(1-mask[...,None]) + x0*mask[...,None]
             else:
                 x1 = self.rhs_sample(model,that[None].repeat(x0.size(0)),xt,k=k)
                 x0_ = self.sampler_0(x1)
-                tdt = 1 - torch.exp(-that-self.step_size)[None].repeat(x1.size(0))
+                tdt = 1 - torch.exp(-that-step_size_local)[None].repeat(x1.size(0))
                 xt = torch.where(mask[...,None]>0.5, x0, self.interpolate(x0_,x1,t=tdt)[1])
             
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
@@ -409,10 +420,11 @@ class LogitEntropy(object):
     def inference_prefix(self,model,x0, prefix, k=1,mask=None,t_split=None):
         if t_split is None:
             t_split = self.t_split
-        # thats = -torch.log(1-torch.linspace(0,self.max_t,self.N+1,device=x0.device))
-        thats = torch.linspace(0,self.max_that,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_local = self.max_that / n_steps
+        thats = torch.linspace(0,self.max_that,n_steps+1,device=x0.device)
         lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),torch.log(x0))
         xt = x0.clone()
         for that in tqdm(thats[:-1]):
@@ -421,14 +433,14 @@ class LogitEntropy(object):
                 l1 = self.rhs(model,that[None].repeat(x0.size(0)), xt, k=-1)
                 prefix_logits = prefix * np.log(1-self.beta+self.beta/self.vocab_size) + (1-prefix) * np.log(self.beta/self.vocab_size)
                 l1 = torch.where(mask[...,None]>0.5,prefix_logits,l1)
-                lt = (1-self.step_size)*lt + self.step_size*l1
+                lt = (1-step_size_local)*lt + step_size_local*l1
                 xt =  lt.softmax(dim=-1)
             else:
                 x1 = self.rhs_sample(model,that[None].repeat(x0.size(0)),xt,k=k)
                 prefix_probs = prefix.argmax(dim=-1)
                 x1 = torch.where(mask>0.5,prefix_probs,x1)
                 x0_ = self.sampler_0(x1)
-                tdt = 1 - torch.exp(-that-self.step_size)[None].repeat(x1.size(0))
+                tdt = 1 - torch.exp(-that-step_size_local)[None].repeat(x1.size(0))
                 xt = self.interpolate(x0_,x1,t=tdt)[1]
             
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
@@ -589,22 +601,24 @@ class LogitUpdated(object):
     def inference_mixed(self,model,x0, mask=None, k=1, t_split=None):
         if t_split is None:
             t_split = self.t_split
-        thats = torch.linspace(0,self.max_that,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_local = self.max_that / n_steps
+        thats = torch.linspace(0,self.max_that,n_steps+1,device=x0.device)
         lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),torch.log(x0))
         xt = x0.clone()
         for that in tqdm(thats[:-1]):
             t = 1- torch.exp(-that)
             if t < t_split:
                 l1 = self.rhs(model,that[None].repeat(x0.size(0)), lt, xt)    
-                lt = ((1-self.step_size)*lt + self.step_size*l1).log_softmax(dim=-1)
+                lt = ((1-step_size_local)*lt + step_size_local*l1).log_softmax(dim=-1)
                 xt_ =  lt.softmax(dim=-1)
                 xt = torch.where(mask[...,None]>0.5, x0, xt_)
             else:
                 x1 = self.rhs_sample(model,that[None].repeat(x0.size(0)),lt,xt,k=k)
                 x0_ = self.sampler_0(x1)
-                tdt = 1 - torch.exp(-that-self.step_size)[None].repeat(x1.size(0))
+                tdt = 1 - torch.exp(-that-step_size_local)[None].repeat(x1.size(0))
                 _, lt_, xt_ = self.interpolate(x0_,x1,t=tdt)
                 xt = torch.where(mask[...,None]>0.5, x0, xt_)
                 lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),lt_)
@@ -614,10 +628,11 @@ class LogitUpdated(object):
     def inference_prefix(self,model,x0, prefix, k=1,mask=None,t_split=None):
         if t_split is None:
             t_split = self.t_split
-        # thats = -torch.log(1-torch.linspace(0,self.max_t,self.N+1,device=x0.device))
-        thats = torch.linspace(0,self.max_that,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_local = self.max_that / n_steps
+        thats = torch.linspace(0,self.max_that,n_steps+1,device=x0.device)
         lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),torch.log(x0))
         xt = x0.clone()
         for that in tqdm(thats[:-1]):
@@ -626,14 +641,14 @@ class LogitUpdated(object):
                 l1 = self.rhs(model,that[None].repeat(x0.size(0)), lt, xt)
                 prefix_logits = prefix * np.log(1-self.beta+self.beta/self.vocab_size) + (1-prefix) * np.log(self.beta/self.vocab_size)
                 l1 = torch.where(mask[...,None]>0.5,prefix_logits,l1)
-                lt = (1-self.step_size)*lt + self.step_size*l1
+                lt = (1-step_size_local)*lt + step_size_local*l1
                 xt =  lt.softmax(dim=-1)
             else:
                 x1 = self.rhs_sample(model,that[None].repeat(x0.size(0)),lt,xt,k=k)
                 prefix_probs = prefix.argmax(dim=-1)
                 x1 = torch.where(mask>0.5,prefix_probs,x1)
                 x0_ = self.sampler_0(x1)
-                tdt = 1 - torch.exp(-that-self.step_size)[None].repeat(x1.size(0))
+                tdt = 1 - torch.exp(-that-step_size_local)[None].repeat(x1.size(0))
                 _, lt_, xt_ = self.interpolate(x0_,x1,t=tdt)
                 xt = torch.where(mask[...,None]>0.5, x0, xt_)
                 lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),lt_)
@@ -738,22 +753,23 @@ class OneShot(object):
     def inference_mixed(self,model,x0, mask=None, k=1, t_split=None):
         if t_split is None:
             t_split = self.t_split
-        # thats = -torch.log(1-torch.linspace(0,self.max_t,self.N+1,device=x0.device))
-        thats = torch.linspace(0,self.max_that,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_local = self.max_that / n_steps
+        thats = torch.linspace(0,self.max_that,n_steps+1,device=x0.device)
         lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),torch.log(x0))
         xt = x0.clone()
         for that in tqdm(thats[:-1]):
             t = 1- torch.exp(-that)
             if t < t_split:
                 l1 = self.rhs(model,that[None].repeat(x0.size(0)), xt, k=-1)
-                lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),(1-self.step_size)*lt + self.step_size*l1)
+                lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),(1-step_size_local)*lt + step_size_local*l1)
                 xt =  lt.softmax(dim=-1)*(1-mask[...,None]) + x0*mask[...,None]
             else:
                 x1 = self.rhs_sample(model,that[None].repeat(x0.size(0)),xt,k=k)
                 x0_ = self.sampler_0(x1)
-                tdt = 1 - torch.exp(-that-self.step_size)[None].repeat(x1.size(0))
+                tdt = 1 - torch.exp(-that-step_size_local)[None].repeat(x1.size(0))
                 xt = torch.where(mask[...,None]>0.5, x0, self.interpolate(x0_,x1,t=tdt)[1])
             
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
@@ -826,21 +842,23 @@ class LogitMask(object):
     def inference_mixed(self,model,x0, mask=None, k=1, t_split=None):
         if t_split is None:
             t_split = self.t_split
-        thats = torch.linspace(0,self.max_that,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_local = self.max_that / n_steps
+        thats = torch.linspace(0,self.max_that,n_steps+1,device=x0.device)
         lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),torch.log(x0))
         xt = x0.clone()
         for that in tqdm(thats[:-1]):
             t = 1- torch.exp(-that)
             if t < t_split:
                 l1 = self.rhs(model,that[None].repeat(x0.size(0)), xt, k=-1)
-                lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),(1-self.step_size)*lt + self.step_size*l1)
+                lt = torch.where(mask[...,None]>0.5,torch.zeros_like(x0),(1-step_size_local)*lt + step_size_local*l1)
                 xt =  lt.softmax(dim=-1)*(1-mask[...,None]) + x0*mask[...,None]
             else:
                 x1 = self.rhs_sample(model,that[None].repeat(x0.size(0)),xt,k=k)
                 x0_ = self.sampler_0(x1)
-                tdt = 1 - torch.exp(-that-self.step_size)[None].repeat(x1.size(0))
+                tdt = 1 - torch.exp(-that-step_size_local)[None].repeat(x1.size(0))
                 xt = torch.where(mask[...,None]>0.5, x0, self.interpolate(x0_,x1,t=tdt)[1])
             
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
@@ -916,10 +934,16 @@ class DFM(object):
         return xtdt
     @torch.no_grad()
     def inference(self,model,x0,k=1,mask=None):
-        ts = torch.linspace(0,self.max_t,self.N+1,device=x0.device)
+        if mask is None:
+            mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_save = self.step_size
+        self.step_size = self.max_t / n_steps
+        ts = torch.linspace(0,self.max_t,n_steps+1,device=x0.device)
         xt = x0.clone()
         for t in tqdm(ts[:-1]):
             xt = self.rhs_base(model,t[None].repeat(x0.size(0)),x0,xt,mask=mask)
+        self.step_size = step_size_save
         return xt
     def rhs_sample(self,model,t,x0,xt,mask=None,k=1):
         if mask is None:
@@ -938,26 +962,34 @@ class DFM(object):
         return xtdt
     @torch.no_grad()
     def inference_mixed(self,model,x0, mask=None, k=1, t_split=0.25):
-        ts = torch.linspace(0,self.max_t,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_save = self.step_size
+        self.step_size = self.max_t / n_steps
+        ts = torch.linspace(0,self.max_t,n_steps+1,device=x0.device)
         xt = x0.clone()
         for t in tqdm(ts[:-1]):
             xt = self.rhs_base(model, t[None].repeat(x0.size(0)), x0, xt)
             
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
         x1_hat = x0 * mask[...,None] + model(t_max,xt).softmax(dim=-1) * (1-mask[...,None])
+        self.step_size = step_size_save
         return x1_hat
     def inference_prefix(self,model,x0, prefix, k=1,mask=None,t_split=None):
-        ts = torch.linspace(0,self.max_t,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_save = self.step_size
+        self.step_size = self.max_t / n_steps
+        ts = torch.linspace(0,self.max_t,n_steps+1,device=x0.device)
         xt = x0.clone()
         for t in tqdm(ts[:-1]):
             xt = self.rhs_base(model, t[None].repeat(x0.size(0)), x0, xt)
             xt = torch.where(mask[...,None]>0.5,prefix,xt)
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
         x1_hat = prefix * mask[...,None] + model(t_max,xt).softmax(dim=-1) * (1-mask[...,None])
+        self.step_size = step_size_save
         return x1_hat
 
 
@@ -1011,9 +1043,12 @@ class Sphere(object):
         return qtdt
     @torch.no_grad()
     def inference_mixed(self,model,x0, mask=None, k=1, t_split=0.25):
-        thats = torch.linspace(0,self.max_that,self.N+1,device=x0.device)
         if mask is None:
             mask = torch.zeros_like(x0[...,0])
+        n_steps = _inference_steps_from_mask(mask, self.N)
+        step_size_save = self.step_size
+        self.step_size = self.max_that / n_steps
+        thats = torch.linspace(0,self.max_that,n_steps+1,device=x0.device)
         q0 = x0.sqrt()
         qt = q0.clone()
         for that in tqdm(thats[:-1]):
@@ -1025,6 +1060,7 @@ class Sphere(object):
             
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
         x1_hat = torch.nn.functional.normalize(model(t_max,qt.pow(2)).abs(),dim=-1)
+        self.step_size = step_size_save
         return x1_hat
 import scipy
 import scipy.special
@@ -1092,8 +1128,11 @@ class Dirichlet(object):
         xtdt = self.interpolate(x0,x1,t=t+self.step_size)
         return xtdt
     @torch.no_grad()
-    def inference_mixed(self,model,x0, k=1, t_split=0.25):
-        ts = torch.linspace(1,self.max_t,self.N+1,device=x0.device)
+    def inference_mixed(self,model,x0, mask=None, k=1, t_split=0.25):
+        n_steps = _inference_steps_from_mask(mask, self.N) if mask is not None else self.N
+        step_size_save = self.step_size
+        self.step_size = (self.max_t - 1) / n_steps
+        ts = torch.linspace(1,self.max_t,n_steps+1,device=x0.device)
         xt = x0.clone()
         for t in tqdm(ts[:-1]):
             if t < t_split:
@@ -1103,4 +1142,5 @@ class Dirichlet(object):
             
         t_max = torch.tensor([self.max_t],device=x0.device).repeat(x0.size(0))
         x1_hat = model(t_max,xt).softmax(dim=-1)
+        self.step_size = step_size_save
         return x1_hat

@@ -10,5 +10,6 @@ training_config:
 data:
     dataset_path: "roneneldan/TinyStories"
     condition: False
-
+inference:
+    N_samples: 1000
 # Checkpoint will be auto-detected from logs/tiny_stories_fm/
