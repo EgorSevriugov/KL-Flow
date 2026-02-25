@@ -2,6 +2,8 @@
 Utility functions for loading and managing models
 """
 import importlib
+import pickle
+
 import torch
 import torch.nn as nn
 
@@ -81,20 +83,12 @@ def load_checkpoint(model, checkpoint_path, device='cpu', strict=True):
     Returns:
         Model with loaded weights
     """
-    ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    
-    # Handle different checkpoint formats
-    if isinstance(ckpt, dict):
-        if 'model' in ckpt:
-            state_dict = ckpt['model']
-        elif 'model_state_dict' in ckpt:
-            state_dict = ckpt['model_state_dict']
-        elif 'state_dict' in ckpt:
-            state_dict = ckpt['state_dict']
-        else:
-            state_dict = ckpt
-    else:
-        state_dict = ckpt
+    # Safetensors: no pickle, load directly
+    try:
+        from safetensors.torch import load_file
+        state_dict = load_file(checkpoint_path, device=str(device))
+    except Exception as e:
+        raise RuntimeError(f"Failed to load safetensors from {checkpoint_path}: {e}") from e
     
     # Remove _orig_mod. prefix if present (from torch.compile)
     state_dict = {name.replace("_orig_mod.", ""): value 
