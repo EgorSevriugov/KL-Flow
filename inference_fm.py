@@ -286,12 +286,13 @@ def find_checkpoint(config) -> str:
             import glob
             
             # Try different checkpoint patterns
-            patterns = [
-                os.path.join(logs_dir, "checkpoint-*", "*.pt"),  # HF Trainer format
-                os.path.join(logs_dir, "ckpt_*.pt"),             # Custom format with step
-                os.path.join(logs_dir, "ckpt.pt"),               # Final checkpoint
-                os.path.join(logs_dir, "*.pt"),                  # Any .pt file
-            ]
+            # patterns = [
+            #     os.path.join(logs_dir, "checkpoint-*", "*.pt"),  # HF Trainer format
+            #     os.path.join(logs_dir, "ckpt_*.pt"),             # Custom format with step
+            #     os.path.join(logs_dir, "ckpt.pt"),               # Final checkpoint
+            #     os.path.join(logs_dir, "*.pt"),                  # Any .pt file
+            # ]
+            patterns = [os.path.join(logs_dir, "model.safetensors")]
             
             for pattern in patterns:
                 checkpoints = glob.glob(pattern)
