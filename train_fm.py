@@ -19,6 +19,11 @@ from muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 from model_utils import load_class, load_model, load_checkpoint
 
 
+def is_main_process() -> bool:
+    """True only on rank 0 (or when not in distributed), so prints happen once in multi-GPU."""
+    return int(os.environ.get("RANK", 0)) == 0
+
+
 # -----------------------------------------------------------------------------
 # Config Loading and Merging
 # -----------------------------------------------------------------------------
@@ -40,18 +45,22 @@ def load_config(experiment_config_path: str) -> OmegaConf:
     # Load default config
     if os.path.exists(default_config_path):
         default_config = OmegaConf.load(default_config_path)
-        print(f"Loaded default config from: {default_config_path}")
+        if is_main_process():
+            print(f"Loaded default config from: {default_config_path}")
     else:
-        print(f"Warning: Default config not found at {default_config_path}")
+        if is_main_process():
+            print(f"Warning: Default config not found at {default_config_path}")
         default_config = OmegaConf.create()
     
     # Load experiment config
     experiment_config = OmegaConf.load(experiment_config_path)
-    print(f"Loaded experiment config from: {experiment_config_path}")
+    if is_main_process():
+        print(f"Loaded experiment config from: {experiment_config_path}")
     
     # Merge configs (experiment config overrides defaults)
     config = OmegaConf.merge(default_config, experiment_config)
-    print("Merged default and experiment configs")
+    if is_main_process():
+        print("Merged default and experiment configs")
     
     return config
 
@@ -384,7 +393,8 @@ def main():
     num_training_steps = int(num_tokens / tokens_per_step)
     
     # Load tokenizer
-    print(f"Loading tokenizer: {config.data.tokenizer_name}")
+    if is_main_process():
+        print(f"Loading tokenizer: {config.data.tokenizer_name}")
     tokenizer = AutoTokenizer.from_pretrained(config.data.tokenizer_name)
     
     # Add special tokens if not present
@@ -400,14 +410,17 @@ def main():
     
     if special_tokens_dict:
         tokenizer.add_special_tokens(special_tokens_dict)
-        print(f"Added special tokens: {special_tokens_dict}")
+        if is_main_process():
+            print(f"Added special tokens: {special_tokens_dict}")
     
-    print(f"Tokenizer vocab size: {tokenizer.vocab_size}")
+    if is_main_process():
+        print(f"Tokenizer vocab size: {tokenizer.vocab_size}")
     
     # Initialize FM utils with tokenizer
     fm_type = load_class("FM_utils", config.fm.type)
     fm = fm_type(config.fm_config, tokenizer=tokenizer)
-    print(f"FM initialized with vocab_size: {fm.vocab_size}")
+    if is_main_process():
+        print(f"FM initialized with vocab_size: {fm.vocab_size}")
     
     # Create datasets
     train_dataset = TextDataset(
@@ -442,7 +455,8 @@ def main():
     # Load checkpoint if specified
     if ckpt_path is not None and os.path.isfile(ckpt_path):
         model = load_checkpoint(model, ckpt_path, device="cpu", strict=False)
-        print(f"Model loaded from checkpoint: {ckpt_path}")
+        if is_main_process():
+            print(f"Model loaded from checkpoint: {ckpt_path}")
     
     # Optional: torch.compile (faster forward/backward; needs Triton/CUDA toolchain)
     if config.training_config.get("compile", False):
@@ -450,20 +464,22 @@ def main():
             torch._inductor.config.coordinate_descent_tuning = True
         try:
             model = torch.compile(model, dynamic=True)
-            print("Model compiled with torch.compile (dynamic=True)")
+            if is_main_process():
+                print("Model compiled with torch.compile (dynamic=True)")
         except Exception as e:
             err = str(e)
             if "gcc" in err.lower() or "triton" in err.lower() or "CalledProcessError" in err:
-                print(
-                    "Triton compile failed. Set CUDA_HOME and ensure gcc finds CUDA headers, or set training_config.compile: false."
-                )
+                if is_main_process():
+                    print(
+                        "Triton compile failed. Set CUDA_HOME and ensure gcc finds CUDA headers, or set training_config.compile: false."
+                    )
             raise
 
     # No gradient accumulation: LR and steps are tuned for effective_batch_size
     gradient_accumulation_steps = 1
     ref_batch = config.training_config.get("reference_batch_size", 128)
     lr_scale = effective_batch_size / ref_batch
-    if lr_scale != 1.0:
+    if lr_scale != 1.0 and is_main_process():
         print(f"Effective batch size {effective_batch_size} (ref={ref_batch}): scaling LR by {lr_scale:.4f}")
 
     # Training arguments
@@ -512,7 +528,8 @@ def main():
     # Save final model
     trainer.save_model(output_dir)
     
-    print(f"Training completed. Model saved to {output_dir}")
+    if is_main_process():
+        print(f"Training completed. Model saved to {output_dir}")
 
 
 if __name__ == "__main__":
