@@ -1,8 +1,14 @@
 #!/bin/bash
 # KL-Flow UV Setup Script for Linux/macOS
 # Run with: bash setup_uv.sh
+# Recreate env with new versions: bash setup_uv.sh --recreate
 
 set -e
+
+RECREATE=false
+if [ "${1:-}" = "--recreate" ]; then
+  RECREATE=true
+fi
 
 echo "=== KL-Flow Setup with UV ==="
 echo ""
@@ -24,10 +30,20 @@ else
 fi
 
 echo ""
+# Create .venv if missing, or recreate if --recreate
+if [ "$RECREATE" = true ] && [ -d .venv ]; then
+    echo "Removing existing .venv (--recreate)..."
+    rm -rf .venv
+fi
+if [ ! -d .venv ]; then
+    echo "Creating virtual environment (.venv)..."
+    uv venv
+fi
+
 echo "Installing KL-Flow dependencies..."
 echo "This may take a few minutes..."
 
-# Install dependencies
+# Install dependencies (uv uses .venv automatically when present)
 if uv pip install -r requirements.txt; then
     echo "Dependencies installed successfully!"
 else

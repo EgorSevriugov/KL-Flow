@@ -19,16 +19,32 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Then install KL-Flow dependencies:
+Then install KL-Flow dependencies (from the project root). Use a virtual environment so `uv run` works:
 ```bash
+uv venv
 uv pip install -r requirements.txt
 ```
+*(Or run `./setup_uv.sh` on Linux/macOS to do this automatically.)*
 
-Or use with uv's built-in environment management:
+Run scripts with `uv run` so they use the same environment:
 ```bash
-uv sync
 uv run python train_fm.py configs/config_tinystories_unconditional.yaml
 ```
+
+**Recreating the UV environment** (e.g. after updating `requirements.txt` to new PyTorch or dependency versions): from the project root, remove the existing venv and reinstall:
+```bash
+# Linux/macOS
+rm -rf .venv
+uv venv
+uv pip install -r requirements.txt
+```
+```powershell
+# Windows (PowerShell)
+Remove-Item -Recurse -Force .venv -ErrorAction SilentlyContinue
+uv venv
+uv pip install -r requirements.txt
+```
+Or run `./setup_uv.sh --recreate` on Linux/macOS (see script).
 
 #### Option B: Using Conda
 
