@@ -81,7 +81,7 @@ def load_checkpoint(model, checkpoint_path, device='cpu', strict=True):
     Returns:
         Model with loaded weights
     """
-    ckpt = torch.load(checkpoint_path, map_location=device)
+    ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
     
     # Handle different checkpoint formats
     if isinstance(ckpt, dict):
