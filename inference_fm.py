@@ -393,7 +393,7 @@ def main():
         param.requires_grad = False
     
     # Set up inference: same as training (bf16=True) — autocast only, model stays fp32
-    ctx = torch.amp.autocast(device_type='cuda', dtype=torch.float)
+    ctx = torch.amp.autocast(device_type='cuda', dtype=torch.bfloat16)
     
     def model_forward(t, x):
         # Mirrors training forward: model(t, xt, return_logits=True) under bf16 autocast
