@@ -11,5 +11,8 @@ data:
     dataset_path: "roneneldan/TinyStories"
     condition: False
 inference:
-    N_samples: 1000
+    N_samples: 100
+data:
+    tokenizer_name: "gpt2"      # Default tokenizer (HuggingFace model name)
+    sequence_length: 128
 # Checkpoint will be auto-detected from logs/tiny_stories_fm/
