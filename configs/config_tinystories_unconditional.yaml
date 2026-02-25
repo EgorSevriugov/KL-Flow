@@ -11,6 +11,7 @@ data:
     dataset_path: "roneneldan/TinyStories"
     condition: False
     sequence_length: 128
+    num_tokens_to_train: 0.25
 
 inference:
     N_samples: 100
