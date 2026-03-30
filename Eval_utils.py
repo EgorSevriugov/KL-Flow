@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-# %%
 import torch
 import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -8,7 +7,6 @@ from torchmetrics.text import Perplexity
 import sys
 
 
-# %%
 def seq_entropy(seqs):
     entropy = 0
     for seq in seqs:
@@ -18,7 +16,6 @@ def seq_entropy(seqs):
     return entropy.item()
 
 
-# %%
 class EvalMetric(object):
     def __init__(self,device="cpu",max_length=2048):
         model_names = {
