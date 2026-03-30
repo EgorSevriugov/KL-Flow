@@ -2,7 +2,6 @@
 # coding: utf-8
 # %%
 import torch
-from torchdiffeq import odeint
 import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from torchmetrics.text import Perplexity
