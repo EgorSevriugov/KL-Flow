@@ -54,6 +54,10 @@ def write_datafile(filename, toks):
 # ------------------------------------------
 from omegaconf import OmegaConf
 config = OmegaConf.load(sys.argv[1])
+if hasattr(config, "data") and hasattr(config.data, "sequence_length"):
+    config.max_length = int(config.data.sequence_length)
+if not hasattr(config, "max_length"):
+    raise ValueError("Missing sequence length: set `data.sequence_length` or `max_length` in config.")
 config.portion = float(sys.argv[2])/100
 config.shard_size = config.shard_size // (config.max_length * 2 * 10) * (config.max_length * 2 * 10)
 

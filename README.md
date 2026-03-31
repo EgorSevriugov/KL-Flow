@@ -131,7 +131,7 @@ training_config:
 data:
   dataset_path: "./data/TinyStories"   # local path or HF dataset id
   tokenizer_name: "gpt2"
-  sequence_length: 512
+  sequence_length: 512                 # single source of truth across train/infer/eval/model
   condition: false
 
 fm:
@@ -155,3 +155,14 @@ Use `configs/config_tinystories_unconditional.yaml` as the base template.
 If you use this repository in academic work, please cite:
 - the paper on OpenReview: https://openreview.net/forum?id=scgtQSpROE
 - this code repository
+
+```bibtex
+@inproceedings{sevriugov2026logitklflow,
+  title     = {Logit-KL Flow Matching: Non-Autoregressive Text Generation via Sampling-Hybrid Inference},
+  author    = {Sevriugov, Egor and Dragunov, Nikita and Razzhigaev, Anton and Kuznetsov, Andrey and Oseledets, Ivan},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2026},
+  url       = {https://openreview.net/forum?id=scgtQSpROE},
+  note      = {OpenReview: scgtQSpROE}
+}
+```

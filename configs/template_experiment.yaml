@@ -13,6 +13,7 @@ training_config:
 # ============================================================================
 data:
     dataset_path: "your/dataset/path"  # CHANGE THIS: HuggingFace dataset or local path
+    sequence_length: 512               # CHANGE THIS IF NEEDED: single global sequence length
     
     # For unconditional generation (default):
     condition: False

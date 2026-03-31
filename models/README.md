@@ -118,7 +118,7 @@ Both models support flexible configurations through constructor arguments:
 - `n_layer`: Number of transformer layers (default: 12)
 - `n_head`: Number of attention heads (default: 12)
 - `dropout`: Dropout probability (default: 0.0)
-- `max_seq_len`: Maximum sequence length (default: 2048)
+- `max_seq_len`: Maximum sequence length (auto-synced from `data.sequence_length` in experiment config)
 - `loss_func`: Custom loss function (default: `F.cross_entropy`)
 
 ### Flow Matching Specific
@@ -126,9 +126,12 @@ Both models support flexible configurations through constructor arguments:
 
 ## Integration with Config Files
 
-To use these models in your training config, specify the model class:
+To use these models in your training config, specify the model class and set sequence length once in `data.sequence_length`:
 
 ```yaml
+data:
+  sequence_length: 512
+
 model:
   type: "FlowMatchingTransformer"  # or "GPTCausal"
   vocab_size: 50304
@@ -136,7 +139,6 @@ model:
   n_layer: 12
   n_head: 12
   dropout: 0.1
-  max_seq_len: 512
 ```
 
 ## References

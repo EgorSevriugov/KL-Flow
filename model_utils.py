@@ -2,6 +2,7 @@
 Utility functions for loading and managing models
 """
 import importlib
+import inspect
 import pickle
 
 import torch
@@ -42,6 +43,13 @@ def load_model(config, fm_loss_func=None, tokenizer=None):
         
         # Create model config dict excluding 'type' field
         model_config = {k: v for k, v in config.model.items() if k != 'type'}
+
+        # Enforce single source of truth for sequence length when provided.
+        if hasattr(config, "data") and hasattr(config.data, "sequence_length"):
+            sequence_length = int(config.data.sequence_length)
+            signature = inspect.signature(model_class.__init__)
+            if "max_seq_len" in signature.parameters:
+                model_config["max_seq_len"] = sequence_length
         
         # vocab_size is always taken from tokenizer when provided (no resizing later)
         if tokenizer is not None:

@@ -181,7 +181,7 @@ class InferenceCollator:
                 all_input_ids.append(combined_ids)
             
             # Pad to max length in batch
-            max_len_in_batch = min(max(len(ids) for ids in all_input_ids), self.max_length)
+            max_len_in_batch = self.max_length
             padded_input_ids = []
             masks = []
             
@@ -219,7 +219,7 @@ class InferenceCollator:
             )
             
             # Pad to max length in batch
-            max_len_in_batch = min(max(len(ids) for ids in encoded["input_ids"]), self.max_length)
+            max_len_in_batch = self.max_length
             padded_input_ids = []
             masks = []
             

@@ -14,7 +14,7 @@ model:
     n_head: 12         # Number of attention heads
     n_embd: 768        # Embedding dimension
     dropout: 0.1       # Dropout rate
-    max_seq_len: 2048  # Maximum sequence length
+    max_seq_len: 512   # Auto-synced from data.sequence_length at runtime
     time_embed_dim: 256  # Time embedding dimension for flow matching
 
 # Flow Matching defaults
@@ -52,7 +52,7 @@ training_config:
 # Data defaults
 data:
     tokenizer_name: "gpt2"      # Default tokenizer (HuggingFace model name)
-    sequence_length: 512        # Maximum sequence length for training
+    sequence_length: 512        # Single sequence length for train/infer/eval/model
     text_field: "text"          # Default field name for text in dataset
     condition: False            # Unconditional by default
     prompt_field: null          # Field for prompts (conditional training)

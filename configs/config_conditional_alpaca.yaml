@@ -11,6 +11,7 @@ training_config:
 # Dataset configuration (Conditional Training)
 data:
     dataset_path: "tatsu-lab/alpaca"
+    sequence_length: 512
     condition: True
     prompt_field: "instruction"  # Field containing the prompt/instruction
     response_field: "output"      # Field containing the response/answer
