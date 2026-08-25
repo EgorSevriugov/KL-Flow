@@ -11,7 +11,7 @@ model:
     type: "FlowMatchingTransformer"  # Default model type
     vocab_size: 50304  # GPT-2 vocab extended to nearest multiple of 128
     n_layer: 12        # Number of transformer layers
-    n_head: 12         # Number of attention heads
+    n_head: 6          # 150M KL-Flow default (head_dim=128); use 12 for 1.5B (n_embd=1536)
     n_embd: 768        # Embedding dimension
     dropout: 0.1       # Dropout rate
     max_seq_len: 512   # Auto-synced from data.sequence_length at runtime

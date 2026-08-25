@@ -7,6 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from models.gpt_causal import RotaryPositionalEmbedding
+
 
 class TimestepEmbedder(nn.Module):
     """
@@ -67,9 +69,9 @@ class TimestepEmbedder(nn.Module):
 
 class MultiHeadAttentionBidirectional(nn.Module):
     """
-    Multi-head bidirectional attention (no causal masking)
+    Multi-head bidirectional attention with RoPE (no causal masking)
     """
-    def __init__(self, n_embd, n_head, dropout=0.0):
+    def __init__(self, n_embd, n_head, dropout=0.0, max_seq_len=8192):
         super().__init__()
         assert n_embd % n_head == 0, "n_embd must be divisible by n_head"
         
@@ -87,6 +89,8 @@ class MultiHeadAttentionBidirectional(nn.Module):
         
         # Zero init output projection
         self.out_proj.weight.data.zero_()
+
+        self.rotary = RotaryPositionalEmbedding(self.head_dim, max_seq_len=max_seq_len)
         
         self.dropout = dropout
     
@@ -108,6 +112,10 @@ class MultiHeadAttentionBidirectional(nn.Module):
         # Apply RMS normalization to Q and K
         q = F.rms_norm(q, (self.head_dim,))
         k = F.rms_norm(k, (self.head_dim,))
+
+        # RoPE: position 0 is the prepended time token, positions 1..T-1 are sequence tokens
+        q = self.rotary(q)
+        k = self.rotary(k)
         
         # Transpose for attention computation (batch, n_head, seq_len, head_dim)
         q = q.transpose(1, 2)
@@ -154,9 +162,9 @@ class TransformerBlock(nn.Module):
     """
     Bidirectional transformer block with pre-normalization and residual connections
     """
-    def __init__(self, n_embd, n_head, dropout=0.0):
+    def __init__(self, n_embd, n_head, dropout=0.0, max_seq_len=8192):
         super().__init__()
-        self.attn = MultiHeadAttentionBidirectional(n_embd, n_head, dropout)
+        self.attn = MultiHeadAttentionBidirectional(n_embd, n_head, dropout, max_seq_len=max_seq_len)
         self.ff = FeedForward(n_embd, dropout)
     
     def forward(self, x, attention_mask=None):
@@ -172,6 +180,7 @@ class FlowMatchingTransformer(nn.Module):
     
     The time embedding is concatenated at the beginning of the sequence,
     allowing the model to condition on the timestep throughout processing.
+    Token positions are encoded with RoPE in attention (position 0 = time token).
     
     Args:
         vocab_size: Size of vocabulary
@@ -187,7 +196,7 @@ class FlowMatchingTransformer(nn.Module):
         vocab_size,
         n_embd=768,
         n_layer=12,
-        n_head=12,
+        n_head=6,
         dropout=0.0,
         max_seq_len=2048,
         time_embed_dim=256,
@@ -208,9 +217,12 @@ class FlowMatchingTransformer(nn.Module):
         # Token embeddings (using Linear instead of Embedding for consistency with one-hot inputs)
         self.token_emb = nn.Linear(vocab_size, n_embd, bias=False)
         
+        # +1 for the prepended time token in the internal sequence
+        rope_max_len = max_seq_len + 1
+
         # Transformer blocks
         self.blocks = nn.ModuleList([
-            TransformerBlock(n_embd, n_head, dropout)
+            TransformerBlock(n_embd, n_head, dropout, max_seq_len=rope_max_len)
             for _ in range(n_layer)
         ])
         

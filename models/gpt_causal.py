@@ -34,9 +34,8 @@ class RotaryPositionalEmbedding(nn.Module):
             self.seq_len_cached = seq_len
             t = torch.arange(seq_len, device=device, dtype=self.inv_freq.dtype)
             freqs = torch.outer(t, self.inv_freq)
-            emb = torch.cat([freqs, freqs], dim=-1)
-            self.cos_cached = emb.cos().to(dtype)
-            self.sin_cached = emb.sin().to(dtype)
+            self.cos_cached = freqs.cos().to(dtype)
+            self.sin_cached = freqs.sin().to(dtype)
         return self.cos_cached, self.sin_cached
     
     def forward(self, x):
@@ -50,8 +49,8 @@ class RotaryPositionalEmbedding(nn.Module):
         seq_len = x.shape[1]
         cos, sin = self._compute_cos_sin(seq_len, x.device, x.dtype)
         
-        # Reshape for broadcasting
-        cos = cos[None, :, None, :]  # (1, seq_len, 1, dim)
+        # (1, seq_len, 1, head_dim // 2)
+        cos = cos[None, :, None, :]
         sin = sin[None, :, None, :]
         
         # Split into two halves and apply rotation
